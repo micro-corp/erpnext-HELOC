@@ -1,0 +1,94 @@
+{
+ "actions": [],
+ "creation": "2026-08-18 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "payment_date",
+  "opening_balance",
+  "column_break_1",
+  "scheduled_payment",
+  "principal_portion",
+  "interest_portion",
+  "closing_balance",
+  "section_break_1",
+  "posted",
+  "journal_entry"
+ ],
+ "fields": [
+  {
+   "fieldname": "payment_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Payment Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "opening_balance",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Opening Balance",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "scheduled_payment",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Scheduled Payment"
+  },
+  {
+   "fieldname": "principal_portion",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Principal"
+  },
+  {
+   "fieldname": "interest_portion",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Interest"
+  },
+  {
+   "fieldname": "closing_balance",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Closing Balance",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "posted",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Posted",
+   "read_only": 1
+  },
+  {
+   "fieldname": "journal_entry",
+   "fieldtype": "Link",
+   "label": "Journal Entry",
+   "options": "Journal Entry",
+   "read_only": 1
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HELOC Tracker",
+ "name": "HELOC Amortization Entry",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -1,0 +1,167 @@
+{
+ "actions": [],
+ "autoname": "field:facility_name",
+ "creation": "2026-08-18 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "facility_name",
+  "company",
+  "lender",
+  "status",
+  "column_break_1",
+  "credit_limit",
+  "total_balance",
+  "available_credit",
+  "section_break_1",
+  "group_liability_account",
+  "section_break_2",
+  "credit_limit_asset_account",
+  "credit_limit_offset_account",
+  "column_break_2",
+  "credit_limit_journal_entry"
+ ],
+ "fields": [
+  {
+   "fieldname": "facility_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Facility Name",
+   "reqd": 1,
+   "unique": 1,
+   "description": "e.g. Marge Atout - Desjardins"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "default": "Desjardins",
+   "fieldname": "lender",
+   "fieldtype": "Data",
+   "label": "Lender"
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Active\nClosed"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "credit_limit",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Credit Limit"
+  },
+  {
+   "fieldname": "total_balance",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Total Balance (all tranches)",
+   "read_only": 1,
+   "description": "Sum of Current Balance across every linked HELOC Tranche. Recalculated automatically whenever a tranche payment posts, or on demand via Refresh Balance."
+  },
+  {
+   "fieldname": "available_credit",
+   "fieldtype": "Currency",
+   "label": "Available Credit",
+   "read_only": 1,
+   "description": "Credit Limit minus Total Balance"
+  },
+  {
+   "fieldname": "section_break_1",
+   "fieldtype": "Section Break",
+   "label": "Chart of Accounts Reference"
+  },
+  {
+   "description": "Optional: the 21000-level group liability account this facility rolls up to on your COA, for reference only (postings happen at the individual tranche account level).",
+   "fieldname": "group_liability_account",
+   "fieldtype": "Link",
+   "label": "Group Liability Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "section_break_2",
+   "fieldtype": "Section Break",
+   "label": "Credit Limit Memo Posting"
+  },
+  {
+   "description": "The memo Asset account debited with the full Credit Limit (e.g. \"Available Credit - HELOC\"). This is an informational/off-balance-sheet style entry, not a real asset you own.",
+   "fieldname": "credit_limit_asset_account",
+   "fieldtype": "Link",
+   "label": "Credit Limit Asset Account (Debit)",
+   "options": "Account"
+  },
+  {
+   "description": "The offsetting account credited with the same amount, so the memo entry balances. Common choice: a contra account under the same liability group so it nets against the facility on reports without touching real liability totals.",
+   "fieldname": "credit_limit_offset_account",
+   "fieldtype": "Link",
+   "label": "Credit Limit Offset Account (Credit)",
+   "options": "Account"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "credit_limit_journal_entry",
+   "fieldtype": "Link",
+   "label": "Credit Limit Memo Journal Entry",
+   "options": "Journal Entry",
+   "read_only": 1
+  }
+ ],
+ "links": [
+  {
+   "group": "Tranches",
+   "link_doctype": "HELOC Tranche",
+   "link_fieldname": "heloc"
+  }
+ ],
+ "modified": "2026-08-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HELOC Tracker",
+ "name": "HELOC Facility",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "facility_name",
+ "track_changes": 1
+}

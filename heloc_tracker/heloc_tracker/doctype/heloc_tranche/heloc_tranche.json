@@ -1,0 +1,193 @@
+{
+ "actions": [],
+ "autoname": "field:tranche_name",
+ "creation": "2026-08-18 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "tranche_name",
+  "heloc",
+  "company",
+  "lender",
+  "tranche_type",
+  "status",
+  "column_break_1",
+  "liability_account",
+  "interest_expense_account",
+  "bank_account",
+  "section_break_1",
+  "original_principal",
+  "current_balance",
+  "column_break_2",
+  "interest_rate",
+  "start_date",
+  "term_months",
+  "section_break_2",
+  "amortization_schedule"
+ ],
+ "fields": [
+  {
+   "fieldname": "tranche_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Tranche Name",
+   "reqd": 1,
+   "unique": 1,
+   "description": "e.g. Rev Portion - Desjardins or Pr\u00eat Li\u00e9 Tranche 1"
+  },
+  {
+   "fieldname": "heloc",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "HELOC Facility",
+   "options": "HELOC Facility",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1,
+   "fetch_from": "heloc.company"
+  },
+  {
+   "default": "Desjardins",
+   "fetch_from": "heloc.lender",
+   "fieldname": "lender",
+   "fieldtype": "Data",
+   "label": "Lender"
+  },
+  {
+   "fieldname": "tranche_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Type",
+   "options": "Fixed (Pr\u00eat Li\u00e9)\nRevolving",
+   "reqd": 1
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Active\nClosed"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "The 2102N (or 21010 for Revolving) child liability account on your Chart of Accounts",
+   "fieldname": "liability_account",
+   "fieldtype": "Link",
+   "label": "Liability Account",
+   "options": "Account",
+   "reqd": 1
+  },
+  {
+   "description": "The 55xxx HELOC Interest account this tranche's interest posts to",
+   "fieldname": "interest_expense_account",
+   "fieldtype": "Link",
+   "label": "Interest Expense Account",
+   "options": "Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "bank_account",
+   "fieldtype": "Link",
+   "label": "Bank Account (Credit on Payment)",
+   "options": "Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_1",
+   "fieldtype": "Section Break",
+   "label": "Balances"
+  },
+  {
+   "fieldname": "original_principal",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Original Principal"
+  },
+  {
+   "fieldname": "current_balance",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Current Balance",
+   "read_only": 1,
+   "description": "Auto-updated from the last posted schedule row"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Annual rate. Leave schedule blank / regenerate manually for Revolving, since the rate and balance both float.",
+   "fieldname": "interest_rate",
+   "fieldtype": "Percent",
+   "label": "Annual Interest Rate (%)"
+  },
+  {
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "label": "Start Date"
+  },
+  {
+   "depends_on": "eval:doc.tranche_type=='Fixed (Pr\u00eat Li\u00e9)'",
+   "fieldname": "term_months",
+   "fieldtype": "Int",
+   "label": "Term (Months)"
+  },
+  {
+   "fieldname": "section_break_2",
+   "fieldtype": "Section Break",
+   "label": "Amortization Schedule"
+  },
+  {
+   "fieldname": "amortization_schedule",
+   "fieldtype": "Table",
+   "options": "HELOC Amortization Entry"
+  }
+ ],
+ "links": [],
+ "modified": "2026-08-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HELOC Tracker",
+ "name": "HELOC Tranche",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "tranche_name",
+ "track_changes": 1
+}

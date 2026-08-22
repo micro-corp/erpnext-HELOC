@@ -1,0 +1,2 @@
+include *.json
+recursive-include heloc_tracker *.json *.js *.py *.md *.css
