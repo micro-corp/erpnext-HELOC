@@ -140,6 +140,12 @@ class HELOCFacility(Document):
 
 		revolving = frappe.get_doc("HELOC Tranche", revolving_names[0])
 
+		# Same lock pattern as post_next_payment - prevents two concurrent
+		# carve-outs from both reading the same Revolving balance and
+		# double-spending it.
+		frappe.db.get_value("HELOC Tranche", revolving.name, for_update=True)
+		revolving.reload()
+
 		if flt(revolving.current_balance) < amount:
 			frappe.throw(
 				_("Revolving balance ({0}) is less than the carve-out amount ({1}).").format(

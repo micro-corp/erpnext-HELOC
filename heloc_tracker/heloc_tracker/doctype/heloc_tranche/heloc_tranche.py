@@ -22,6 +22,16 @@ class HELOCTranche(Document):
 		self.validate_single_revolving_tranche()
 		self.validate_accounts()
 		self.validate_posted_rows_unchanged()
+		self.validate_closed_status()
+
+	def validate_closed_status(self):
+		if self.status == "Closed" and abs(flt(self.current_balance)) > 0.01:
+			frappe.throw(
+				_(
+					"Can't set Status to Closed while Current Balance is {0}. Post remaining "
+					"payments first, or correct the balance if the tranche is actually paid off."
+				).format(self.current_balance)
+			)
 
 	def validate_single_revolving_tranche(self):
 		if self.tranche_type == "Revolving" and self.heloc:
@@ -199,6 +209,14 @@ class HELOCTranche(Document):
 		links it back to the row, and updates current_balance.
 		Nothing posts automatically - this only runs when you click it.
 		"""
+		# Row-lock this Tranche for the rest of the transaction so two
+		# concurrent calls (double-click, two sessions) can't both grab the
+		# same "next unposted row" and post it twice. The second caller
+		# blocks here until the first commits, then reload() picks up
+		# whatever the first call already posted.
+		frappe.db.get_value("HELOC Tranche", self.name, for_update=True)
+		self.reload()
+
 		unposted = [r for r in self.amortization_schedule if not r.posted]
 		if not unposted:
 			frappe.throw(_("No unposted schedule rows remain."))
