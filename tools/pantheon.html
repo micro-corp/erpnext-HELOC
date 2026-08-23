@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pantheon — Homelab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#0B0F1A;
+    --tablet:#161C2C;
+    --tablet-edge:#232B41;
+    --gold:#C9A227;
+    --gold-bright:#E4C465;
+    --marble:#E8E1D3;
+    --slate:#7C89A6;
+    --oxide:#9C4A3A;
+  }
+
+  *{box-sizing:border-box;}
+
+  html,body{
+    margin:0;
+    padding:0;
+    background:var(--night);
+    color:var(--marble);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  body{
+    background-image:
+      radial-gradient(circle at 15% 8%, rgba(201,162,39,0.06), transparent 40%),
+      radial-gradient(circle at 85% 92%, rgba(201,162,39,0.05), transparent 45%);
+    min-height:100vh;
+  }
+
+  .meander{
+    height:14px;
+    width:100%;
+    background-image: repeating-linear-gradient(
+      90deg,
+      var(--gold) 0px, var(--gold) 2px,
+      transparent 2px, transparent 14px
+    );
+    opacity:0.35;
+  }
+
+  .wrap{
+    max-width:980px;
+    margin:0 auto;
+    padding:64px 24px 40px;
+  }
+
+  header{
+    text-align:center;
+    margin-bottom:56px;
+  }
+
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.3em;
+    text-transform:uppercase;
+    color:var(--slate);
+    margin-bottom:18px;
+  }
+
+  h1{
+    font-family:'Cinzel', serif;
+    font-weight:700;
+    font-size:clamp(36px, 6vw, 56px);
+    letter-spacing:0.06em;
+    color:var(--marble);
+    margin:0 0 14px;
+    text-shadow:0 0 30px rgba(201,162,39,0.15);
+  }
+
+  h1 span{ color:var(--gold-bright); }
+
+  .subtitle{
+    color:var(--slate);
+    font-size:15px;
+    max-width:480px;
+    margin:0 auto;
+    line-height:1.6;
+  }
+
+  .section-label{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    margin:52px 0 22px;
+  }
+
+  .section-label .line{
+    flex:1;
+    height:1px;
+    background:linear-gradient(90deg, transparent, var(--tablet-edge) 20%, var(--tablet-edge) 80%, transparent);
+  }
+
+  .section-label span{
+    font-family:'Cinzel', serif;
+    font-size:13px;
+    letter-spacing:0.22em;
+    text-transform:uppercase;
+    color:var(--gold);
+    white-space:nowrap;
+  }
+
+  .section-note{
+    text-align:center;
+    color:var(--slate);
+    font-size:13px;
+    margin:-14px 0 26px;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap:18px;
+  }
+
+  @media (max-width:640px){
+    .grid{ grid-template-columns:1fr; }
+  }
+
+  a.card{
+    position:relative;
+    display:flex;
+    align-items:flex-start;
+    gap:18px;
+    padding:22px;
+    background:var(--tablet);
+    border:1px solid var(--tablet-edge);
+    border-radius:4px;
+    text-decoration:none;
+    color:inherit;
+    transition:border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+    overflow:hidden;
+  }
+
+  a.card::before{
+    content:"";
+    position:absolute;
+    top:0; left:0; right:0;
+    height:2px;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity:0;
+    transition:opacity 0.25s ease;
+  }
+
+  a.card:hover, a.card:focus-visible{
+    border-color:var(--gold);
+    transform:translateY(-3px);
+    box-shadow:0 12px 28px rgba(0,0,0,0.35), 0 0 0 1px rgba(201,162,39,0.15);
+    outline:none;
+  }
+
+  a.card:hover::before, a.card:focus-visible::before{ opacity:1; }
+
+  .icon{
+    flex-shrink:0;
+    width:46px;
+    height:46px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--night);
+    border:1px solid var(--tablet-edge);
+    color:var(--gold);
+  }
+
+  .icon svg{ width:22px; height:22px; }
+
+  .card-body{ min-width:0; flex:1; }
+
+  .name{
+    font-family:'Cinzel', serif;
+    font-weight:600;
+    font-size:19px;
+    letter-spacing:0.04em;
+    color:var(--marble);
+    margin:0 0 3px;
+  }
+
+  .role{
+    font-size:12.5px;
+    color:var(--gold);
+    letter-spacing:0.03em;
+    margin:0 0 10px;
+  }
+
+  .domain{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    color:var(--slate);
+    word-break:break-all;
+    margin:0 0 4px;
+  }
+
+  .created{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10.5px;
+    color:#4C5872;
+  }
+
+  .arrow{
+    flex-shrink:0;
+    color:var(--slate);
+    transition:transform 0.25s ease, color 0.25s ease;
+    margin-top:4px;
+  }
+
+  a.card:hover .arrow{ transform:translate(3px,-3px); color:var(--gold-bright); }
+
+  footer{
+    margin-top:64px;
+    text-align:center;
+    color:#4C5872;
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.08em;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    a.card, .arrow{ transition:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="meander"></div>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">ovh · homelab</div>
+    <h1>THE <span>PANTHEON</span></h1>
+    <p class="subtitle">Six services, two houses. Four wear the names of gods; two keep their own.</p>
+  </header>
+
+  <div class="section-label"><div class="line"></div><span>The Pantheon</span><div class="line"></div></div>
+  <p class="section-note">micropoitras.com — infrastructure, ruled by old names</p>
+
+  <div class="grid">
+
+    <a class="card" href="https://zeus.ovh.micropoitras.com" target="_blank" rel="noopener">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg>
+      </div>
+      <div class="card-body">
+        <p class="name">Zeus</p>
+        <p class="role">Portainer — container orchestration</p>
+        <p class="domain">zeus.ovh.micropoitras.com</p>
+        <p class="created">created jul 12, 2026 · 9:09 pm</p>
+      </div>
+      <svg class="arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>
+    </a>
+
+    <a class="card" href="https://hera.ovh.micropoitras.com" target="_blank" rel="noopener">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z"/></svg>
+      </div>
+      <div class="card-body">
+        <p class="name">Hera</p>
+        <p class="role">PowerDNS — name resolution</p>
+        <p class="domain">hera.ovh.micropoitras.com</p>
+        <p class="created">created jul 13, 2026 · 1:51 am</p>
+      </div>
+      <svg class="arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>
+    </a>
+
+    <a class="card" href="https://cronus.ovh.micropoitras.com" target="_blank" rel="noopener">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="6" rx="1"/><rect x="4" y="14" width="16" height="6" rx="1"/><circle cx="8" cy="7" r="0.6" fill="currentColor" stroke="none"/><circle cx="8" cy="17" r="0.6" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <div class="card-body">
+        <p class="name">Cronus</p>
+        <p class="role">Proxmox — the hypervisor, father of hosts</p>
+        <p class="domain">cronus.ovh.micropoitras.com</p>
+        <p class="created">created jul 13, 2026 · 12:55 pm</p>
+      </div>
+      <svg class="arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>
+    </a>
+
+    <a class="card" href="https://charon.ovh.micropoitras.com" target="_blank" rel="noopener">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15c2 1.5 4 1.5 6 0s4-1.5 6 0 4 1.5 6 0"/><path d="M12 4v9M9 6h6"/></svg>
+      </div>
+      <div class="card-body">
+        <p class="name">Charon</p>
+        <p class="role">Nginx Proxy Manager — the crossing, the gate</p>
+        <p class="domain">charon.ovh.micropoitras.com</p>
+        <p class="created">created jul 12, 2026 · 8:50 pm</p>
+      </div>
+      <svg class="arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>
+    </a>
+
+  </div>
+
+  <div class="section-label"><div class="line"></div><span>Everyday</span><div class="line"></div></div>
+  <p class="section-note">pattersonpoitras.com — apps that kept their own names</p>
+
+  <div class="grid">
+
+    <a class="card" href="https://erp.ovh.pattersonpoitras.com" target="_blank" rel="noopener">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-6h6v6M9 12h.01M15 12h.01M9 9h.01M15 9h.01"/></svg>
+      </div>
+      <div class="card-body">
+        <p class="name">ERP</p>
+        <p class="role">ERPNext — books, orders, the ledger</p>
+        <p class="domain">erp.ovh.pattersonpoitras.com</p>
+        <p class="created">created aug 19, 2026 · 12:19 am</p>
+      </div>
+      <svg class="arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>
+    </a>
+
+    <a class="card" href="https://photos.ovh.pattersonpoitras.com" target="_blank" rel="noopener">
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M21 16l-5.5-5-4 4-2-2L3 18"/></svg>
+      </div>
+      <div class="card-body">
+        <p class="name">Photos</p>
+        <p class="role">Immich — the archive</p>
+        <p class="domain">photos.ovh.pattersonpoitras.com</p>
+        <p class="created">created jul 15, 2026 · 2:21 am</p>
+      </div>
+      <svg class="arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg>
+    </a>
+
+  </div>
+
+  <footer>micropoitras · pattersonpoitras — self-hosted, ovh</footer>
+</div>
+
+<div class="meander"></div>
+
+</body>
+</html>
