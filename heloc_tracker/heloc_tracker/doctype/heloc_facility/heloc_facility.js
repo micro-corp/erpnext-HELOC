@@ -1,4 +1,22 @@
 frappe.ui.form.on("HELOC Facility", {
+	setup(frm) {
+		// Reference-only field pointing at the 21000-level group account -
+		// deliberately allowed to be a Group account, unlike everywhere else.
+		frm.set_query("group_liability_account", () => ({
+			filters: { company: frm.doc.company, root_type: "Liability" },
+		}));
+
+		// Credit Limit memo pair is a genuine contra relationship - the
+		// offset side is commonly set up as either an Asset or a Liability
+		// account depending on how the person wants it to read on reports,
+		// so both fields allow either root_type rather than forcing one.
+		const contra_filter = () => ({
+			filters: { company: frm.doc.company, root_type: ["in", ["Asset", "Liability"]], is_group: 0 },
+		});
+		frm.set_query("credit_limit_asset_account", contra_filter);
+		frm.set_query("credit_limit_offset_account", contra_filter);
+	},
+
 	refresh(frm) {
 		if (frm.is_new()) return;
 
@@ -84,6 +102,9 @@ function open_carve_out_dialog(frm) {
 				options: "Account",
 				reqd: 1,
 				description: __("The 2102N child account you've created on your COA for this tranche"),
+				get_query: () => ({
+					filters: { company: frm.doc.company, root_type: "Liability", is_group: 0 },
+				}),
 			},
 			{
 				fieldname: "interest_expense_account",
@@ -91,6 +112,9 @@ function open_carve_out_dialog(frm) {
 				fieldtype: "Link",
 				options: "Account",
 				reqd: 1,
+				get_query: () => ({
+					filters: { company: frm.doc.company, root_type: "Expense", is_group: 0 },
+				}),
 			},
 			{
 				fieldname: "bank_account",
@@ -98,6 +122,9 @@ function open_carve_out_dialog(frm) {
 				fieldtype: "Link",
 				options: "Account",
 				description: __("Leave blank to reuse the Revolving tranche's bank account"),
+				get_query: () => ({
+					filters: { company: frm.doc.company, root_type: "Asset", is_group: 0 },
+				}),
 			},
 		],
 		primary_action_label: __("Carve Out"),

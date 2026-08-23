@@ -7,6 +7,7 @@ from frappe.utils import flt
 class HELOCFacility(Document):
 	def validate(self):
 		self.compute_totals()
+		self.validate_accounts()
 
 		if self.credit_limit_journal_entry and self.has_value_changed("credit_limit"):
 			frappe.msgprint(
@@ -17,6 +18,46 @@ class HELOCFacility(Document):
 				indicator="orange",
 				alert=True,
 			)
+
+	def validate_accounts(self):
+		"""
+		Server-side backstop for the same filters the client script applies -
+		client-side get_query is just UX and can be bypassed via the API.
+		The Credit Limit memo pair is a genuine contra relationship, so
+		both sides are allowed to be either Asset or Liability type
+		(matching whichever way the person set up their offset account),
+		unlike a normal single-purpose account field.
+		"""
+		if self.group_liability_account:
+			acc = frappe.db.get_value("Account", self.group_liability_account, ["company", "root_type"], as_dict=True)
+			if acc:
+				if self.company and acc.company != self.company:
+					frappe.throw(_("Group Liability Account belongs to company {0}, not {1}.").format(acc.company, self.company))
+				if acc.root_type != "Liability":
+					frappe.throw(_("Group Liability Account ({0}) is a {1} account - expected Liability.").format(self.group_liability_account, acc.root_type))
+
+		contra_fields = [
+			("credit_limit_asset_account", _("Credit Limit Asset Account")),
+			("credit_limit_offset_account", _("Credit Limit Offset Account")),
+		]
+		accounts_seen = []
+		for fieldname, label in contra_fields:
+			account = self.get(fieldname)
+			if not account:
+				continue
+			acc = frappe.db.get_value("Account", account, ["company", "root_type", "is_group"], as_dict=True)
+			if not acc:
+				continue
+			if self.company and acc.company != self.company:
+				frappe.throw(_("{0} ({1}) belongs to company {2}, not {3}.").format(label, account, acc.company, self.company))
+			if acc.is_group:
+				frappe.throw(_("{0} ({1}) is a Group account and can't be posted to directly.").format(label, account))
+			if acc.root_type not in ("Asset", "Liability"):
+				frappe.throw(_("{0} ({1}) is a {2} account - expected Asset or Liability.").format(label, account, acc.root_type))
+			accounts_seen.append(account)
+
+		if len(accounts_seen) == 2 and accounts_seen[0] == accounts_seen[1]:
+			frappe.throw(_("Credit Limit Asset Account and Credit Limit Offset Account can't be the same account."))
 
 	def compute_totals(self):
 		"""Sum Current Balance across every HELOC Tranche linked to this facility."""

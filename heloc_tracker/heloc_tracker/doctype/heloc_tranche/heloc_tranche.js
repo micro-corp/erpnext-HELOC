@@ -1,4 +1,19 @@
 frappe.ui.form.on("HELOC Tranche", {
+	setup(frm) {
+		// Straight type matches - these aren't contra fields, so no
+		// asset/liability crossover here (unlike the Facility's credit
+		// limit memo accounts below).
+		frm.set_query("liability_account", () => ({
+			filters: { company: frm.doc.company, root_type: "Liability", is_group: 0 },
+		}));
+		frm.set_query("interest_expense_account", () => ({
+			filters: { company: frm.doc.company, root_type: "Expense", is_group: 0 },
+		}));
+		frm.set_query("bank_account", () => ({
+			filters: { company: frm.doc.company, root_type: "Asset", is_group: 0 },
+		}));
+	},
+
 	refresh(frm) {
 		if (!frm.is_new() && frm.doc.tranche_type === "Fixed (Prêt Lié)" && (!frm.doc.amortization_schedule || frm.doc.amortization_schedule.length === 0)) {
 			frm.add_custom_button(__("Generate Schedule"), () => {
