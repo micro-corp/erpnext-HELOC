@@ -37,5 +37,59 @@ frappe.ui.form.on("HELOC Tranche", {
 				);
 			}).addClass("btn-primary");
 		}
+
+		render_tranche_charts(frm);
 	},
 });
+
+function render_tranche_charts(frm) {
+	const rows = (frm.doc.amortization_schedule || []).slice().sort((a, b) => new Date(a.payment_date) - new Date(b.payment_date));
+
+	const burndown_wrapper = frm.get_field("burndown_chart").$wrapper;
+	const pi_wrapper = frm.get_field("principal_interest_chart").$wrapper;
+	burndown_wrapper.empty();
+	pi_wrapper.empty();
+
+	if (!rows.length) {
+		burndown_wrapper.html(`<p class="text-muted small">${__("Generate or add schedule rows to see charts here.")}</p>`);
+		pi_wrapper.html("");
+		return;
+	}
+
+	const labels = rows.map(r => frappe.datetime.str_to_user(r.payment_date));
+
+	// Burndown: opening balance of row 1, then closing balance of every row after
+	const balance_values = [flt(rows[0].opening_balance), ...rows.map(r => flt(r.closing_balance))];
+	const balance_labels = [__("Start"), ...labels];
+
+	new frappe.Chart(burndown_wrapper[0], {
+		title: __("Balance Burndown"),
+		data: {
+			labels: balance_labels,
+			datasets: [{ name: __("Balance"), values: balance_values }],
+		},
+		type: "line",
+		height: 220,
+		colors: ["#c0392b"],
+		lineOptions: { regionFill: 1 },
+	});
+
+	new frappe.Chart(pi_wrapper[0], {
+		title: __("Principal vs Interest per Payment"),
+		data: {
+			labels: labels,
+			datasets: [
+				{ name: __("Principal"), values: rows.map(r => flt(r.principal_portion)) },
+				{ name: __("Interest"), values: rows.map(r => flt(r.interest_portion)) },
+			],
+		},
+		type: "bar",
+		height: 220,
+		colors: ["#2d9d78", "#e67e22"],
+		barOptions: { stacked: 1 },
+	});
+}
+
+function flt(v) {
+	return parseFloat(v) || 0;
+}

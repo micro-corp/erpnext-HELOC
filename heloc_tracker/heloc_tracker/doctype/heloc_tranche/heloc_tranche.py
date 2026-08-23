@@ -149,35 +149,51 @@ class HELOCTranche(Document):
 			missing.append(_("Original Principal"))
 		if self.interest_rate is None:
 			missing.append(_("Interest Rate"))
-		if not self.term_months:
-			missing.append(_("Term (Months)"))
+		if not self.tranche_term_months:
+			missing.append(_("Tranche Term (Months)"))
+		if not self.total_amortization_months:
+			missing.append(_("Total Amortization (Months)"))
 		if not self.start_date:
 			missing.append(_("Start Date"))
 		if missing:
 			frappe.throw(_("Required before generating a schedule: {0}").format(", ".join(missing)))
+
+		if self.tranche_term_months > self.total_amortization_months:
+			frappe.throw(_("Tranche Term ({0} months) can't be longer than Total Amortization ({1} months).").format(
+				self.tranche_term_months, self.total_amortization_months
+			))
 
 		if self.amortization_schedule:
 			frappe.throw(_("Schedule already has rows. Clear the existing schedule table first if you want to regenerate it."))
 
 		principal = flt(self.original_principal)
 		monthly_rate = flt(self.interest_rate) / 100 / 12
-		n = int(self.term_months)
+		n_amort = int(self.total_amortization_months)
+		n_term = int(self.tranche_term_months)
 
+		# Payment is calculated off the FULL amortization period, even though
+		# only n_term rows get generated - standard Canadian mortgage/Prêt
+		# Lié convention. If the term equals the full amortization, this
+		# tranche pays itself off completely; otherwise a balance remains at
+		# the end of the term for renewal into a new rate/tranche.
 		if monthly_rate > 0:
-			payment = principal * monthly_rate / (1 - (1 + monthly_rate) ** -n)
+			payment = principal * monthly_rate / (1 - (1 + monthly_rate) ** -n_amort)
 		else:
-			payment = principal / n
+			payment = principal / n_amort
 
 		balance = principal
 		payment_date = getdate(self.start_date)
+		fully_amortizes_within_term = n_term >= n_amort
 
-		for i in range(n):
+		for i in range(n_term):
 			payment_date = add_months(getdate(self.start_date), i + 1)
 			interest = balance * monthly_rate
 			principal_portion = payment - interest
 
-			# last row: absorb any rounding so closing balance lands exactly at 0
-			if i == n - 1:
+			# Only absorb rounding into the final row if the term actually
+			# reaches full payoff - otherwise a real balance should remain
+			# for renewal, not be artificially zeroed out.
+			if fully_amortizes_within_term and i == n_term - 1:
 				principal_portion = balance
 				payment_local = principal_portion + interest
 			else:
@@ -199,7 +215,11 @@ class HELOCTranche(Document):
 
 		self.current_balance = self.original_principal
 		self.save()
-		frappe.msgprint(_("Generated {0} schedule rows.").format(n))
+		frappe.msgprint(
+			_("Generated {0} schedule rows over the {1}-month term (payment calculated on a {2}-month amortization).").format(
+				n_term, n_term, n_amort
+			)
+		)
 
 	@frappe.whitelist()
 	def post_next_payment(self):

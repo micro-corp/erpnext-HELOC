@@ -1,7 +1,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import flt
+from frappe.utils import flt, getdate
 
 
 class HELOCFacility(Document):
@@ -151,7 +151,8 @@ class HELOCFacility(Document):
 		tranche_name,
 		amount,
 		interest_rate,
-		term_months,
+		tranche_term_months,
+		total_amortization_months,
 		start_date,
 		liability_account,
 		interest_expense_account,
@@ -209,7 +210,8 @@ class HELOCFacility(Document):
 			"bank_account": bank_account,
 			"original_principal": amount,
 			"interest_rate": interest_rate,
-			"term_months": term_months,
+			"tranche_term_months": tranche_term_months,
+			"total_amortization_months": total_amortization_months,
 			"start_date": start_date,
 		})
 		new_tranche.insert()
@@ -256,6 +258,60 @@ class HELOCFacility(Document):
 		linked = frappe.get_all("HELOC Tranche", filters={"heloc": self.name}, limit=1)
 		if linked:
 			frappe.throw(_("This facility still has linked HELOC Tranche records. Delete or reassign those first."))
+
+	@frappe.whitelist()
+	def get_burndown_data(self):
+		"""
+		Merges every linked tranche's schedule onto one shared timeline and
+		sums each tranche's balance as-of each date, so the result is a real
+		point-in-time total across the whole facility - not just adding up
+		each tranche's own closing_balance column, which would be wrong
+		whenever tranches have different payment dates.
+		"""
+		tranches = frappe.get_all(
+			"HELOC Tranche",
+			filters={"heloc": self.name},
+			fields=["name", "original_principal", "start_date"],
+		)
+		if not tranches:
+			return {"labels": [], "values": []}
+
+		rows = frappe.get_all(
+			"HELOC Amortization Entry",
+			filters={"parent": ["in", [t.name for t in tranches]]},
+			fields=["parent", "payment_date", "closing_balance"],
+			order_by="payment_date asc",
+		)
+
+		schedules = {t.name: [] for t in tranches}
+		for row in rows:
+			schedules[row.parent].append((getdate(row.payment_date), flt(row.closing_balance)))
+
+		all_dates = sorted({d for parent_rows in schedules.values() for d, _bal_unused in parent_rows})
+		if not all_dates:
+			return {"labels": [], "values": []}
+
+		totals = []
+		for as_of in all_dates:
+			total = 0
+			for t in tranches:
+				parent_rows = schedules[t.name]
+				# balance as of this date = closing_balance of the last row on
+				# or before as_of, or original_principal if no row has posted
+				# yet by this date
+				balance = flt(t.original_principal)
+				for d, bal in parent_rows:
+					if d <= as_of:
+						balance = bal
+					else:
+						break
+				total += balance
+			totals.append(round(total, 2))
+
+		return {
+			"labels": [d.strftime("%Y-%m-%d") for d in all_dates],
+			"values": totals,
+		}
 
 	@frappe.whitelist()
 	def sync_budget(self, fiscal_year):

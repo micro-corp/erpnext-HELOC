@@ -21,9 +21,14 @@
   "column_break_2",
   "interest_rate",
   "start_date",
-  "term_months",
+  "tranche_term_months",
+  "total_amortization_months",
   "section_break_2",
   "amortization_schedule",
+  "section_break_charts",
+  "burndown_chart",
+  "column_break_charts",
+  "principal_interest_chart",
   "section_break_3",
   "carved_out_from",
   "carve_out_journal_entry"
@@ -141,9 +146,17 @@
   },
   {
    "depends_on": "eval:doc.tranche_type=='Fixed (Pr\u00eat Li\u00e9)'",
-   "fieldname": "term_months",
+   "description": "How long this tranche's current rate is locked in for before it needs to be renewed - shorter than or equal to Total Amortization. This is the number of schedule rows actually generated.",
+   "fieldname": "tranche_term_months",
    "fieldtype": "Int",
-   "label": "Term (Months)"
+   "label": "Tranche Term (Months)"
+  },
+  {
+   "depends_on": "eval:doc.tranche_type=='Fixed (Pr\u00eat Li\u00e9)'",
+   "description": "The full payoff horizon used to calculate the payment amount (e.g. 25 years/300 months), even though this tranche's Term may be shorter. Standard Canadian mortgage/Pr\u00eat Li\u00e9 convention: payment is calculated as if amortizing over this full period, but only charged for the Term - at renewal, a new tranche/rate continues amortizing the remaining balance over the remaining months.",
+   "fieldname": "total_amortization_months",
+   "fieldtype": "Int",
+   "label": "Total Amortization (Months)"
   },
   {
    "fieldname": "section_break_2",
@@ -154,6 +167,26 @@
    "fieldname": "amortization_schedule",
    "fieldtype": "Table",
    "options": "HELOC Amortization Entry"
+  },
+  {
+   "fieldname": "section_break_charts",
+   "fieldtype": "Section Break",
+   "label": "Charts",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "burndown_chart",
+   "fieldtype": "HTML",
+   "label": "Balance Burndown"
+  },
+  {
+   "fieldname": "column_break_charts",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "principal_interest_chart",
+   "fieldtype": "HTML",
+   "label": "Principal vs Interest per Payment"
   },
   {
    "fieldname": "section_break_3",

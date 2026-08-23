@@ -22,7 +22,9 @@
   "credit_limit_journal_entry",
   "section_break_3",
   "cost_center",
-  "last_synced_budget"
+  "last_synced_budget",
+  "section_break_4",
+  "facility_burndown_chart"
  ],
  "fields": [
   {
@@ -141,6 +143,17 @@
    "label": "Last Synced Budget",
    "options": "Budget",
    "read_only": 1
+  },
+  {
+   "fieldname": "section_break_4",
+   "fieldtype": "Section Break",
+   "label": "Total Balance Over Time",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "facility_burndown_chart",
+   "fieldtype": "HTML",
+   "label": "Total Balance Burndown (All Tranches)"
   }
  ],
  "links": [

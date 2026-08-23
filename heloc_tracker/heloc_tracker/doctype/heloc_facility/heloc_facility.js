@@ -65,8 +65,36 @@ frappe.ui.form.on("HELOC Facility", {
 				open_sync_budget_dialog(frm);
 			}, __("Budget"));
 		}
+
+		render_facility_burndown(frm);
 	},
 });
+
+function render_facility_burndown(frm) {
+	const wrapper = frm.get_field("facility_burndown_chart").$wrapper;
+	wrapper.empty();
+	wrapper.html(`<p class="text-muted small">${__("Loading...")}</p>`);
+
+	frm.call("get_burndown_data").then((r) => {
+		wrapper.empty();
+		const data = r.message || { labels: [], values: [] };
+		if (!data.labels.length) {
+			wrapper.html(`<p class="text-muted small">${__("No schedule rows yet across any linked tranche.")}</p>`);
+			return;
+		}
+		new frappe.Chart(wrapper[0], {
+			title: __("Total Balance Across All Tranches"),
+			data: {
+				labels: data.labels.map((d) => frappe.datetime.str_to_user(d)),
+				datasets: [{ name: __("Total Balance"), values: data.values }],
+			},
+			type: "line",
+			height: 240,
+			colors: ["#c0392b"],
+			lineOptions: { regionFill: 1 },
+		});
+	});
+}
 
 function open_carve_out_dialog(frm) {
 	const dialog = new frappe.ui.Dialog({
@@ -92,10 +120,18 @@ function open_carve_out_dialog(frm) {
 				reqd: 1,
 			},
 			{
-				fieldname: "term_months",
-				label: __("Term (Months)"),
+				fieldname: "tranche_term_months",
+				label: __("Tranche Term (Months)"),
 				fieldtype: "Int",
 				reqd: 1,
+				description: __("How long the rate is locked in for"),
+			},
+			{
+				fieldname: "total_amortization_months",
+				label: __("Total Amortization (Months)"),
+				fieldtype: "Int",
+				reqd: 1,
+				description: __("Full payoff horizon used to calculate the payment - can be longer than the Term"),
 			},
 			{
 				fieldname: "start_date",
