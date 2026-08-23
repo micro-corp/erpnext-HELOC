@@ -19,6 +19,7 @@ add_to_apps_screen = [
 		"name": "heloc_tracker",
 		"title": app_title,
 		"route": "/app/heloc-facility",
+		"logo": "/assets/heloc_tracker/images/logo.svg",
 	}
 ]
 

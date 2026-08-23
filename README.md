@@ -47,12 +47,15 @@ From your bench directory:
 bench get-app heloc_tracker /path/to/unzipped/heloc_tracker
 bench --site your-site-name install-app heloc_tracker
 bench --site your-site-name migrate
+bench build --app heloc_tracker
 bench restart
 ```
 
 (`get-app` here takes a local path since this isn't published to a git remote — adjust if you push it
 to your own git repo instead, in which case pass the repo URL. Compatible with Frappe v16, declared
-in `pyproject.toml` under `[tool.bench.frappe-dependencies]`.)
+in `pyproject.toml` under `[tool.bench.frappe-dependencies]`. The `bench build` step is required for
+the app's icon on the Desktop apps list to show up — static assets under `public/` aren't served until
+built, so skipping this step is why the tile shows blank.)
 
 ## Usage
 
