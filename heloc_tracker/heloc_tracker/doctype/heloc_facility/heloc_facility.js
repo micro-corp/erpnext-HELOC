@@ -15,6 +15,10 @@ frappe.ui.form.on("HELOC Facility", {
 		});
 		frm.set_query("credit_limit_asset_account", contra_filter);
 		frm.set_query("credit_limit_offset_account", contra_filter);
+
+		frm.set_query("cost_center", () => ({
+			filters: { company: frm.doc.company, is_group: 0 },
+		}));
 	},
 
 	refresh(frm) {
@@ -54,6 +58,12 @@ frappe.ui.form.on("HELOC Facility", {
 					}
 				);
 			}, __("Credit Limit"));
+		}
+
+		if (frm.doc.cost_center) {
+			frm.add_custom_button(__("Sync Budget"), () => {
+				open_sync_budget_dialog(frm);
+			}, __("Budget"));
 		}
 	},
 });
@@ -141,6 +151,37 @@ function open_carve_out_dialog(frm) {
 					});
 				}
 			);
+		},
+	});
+	dialog.show();
+}
+
+function open_sync_budget_dialog(frm) {
+	const dialog = new frappe.ui.Dialog({
+		title: __("Sync Budget"),
+		fields: [
+			{
+				fieldname: "fiscal_year",
+				label: __("Fiscal Year"),
+				fieldtype: "Link",
+				options: "Fiscal Year",
+				reqd: 1,
+				default: frappe.defaults.get_default("fiscal_year"),
+			},
+			{
+				fieldname: "note",
+				fieldtype: "HTML",
+				options: `<p class="text-muted">${__(
+					"Sums every linked tranche's interest and principal for this Fiscal Year into an ERPNext Budget document against this facility's Cost Center. If a Budget already exists for that Cost Center and Fiscal Year, it's replaced (cancelled and re-created as an amendment if already submitted)."
+				)}</p>`,
+			},
+		],
+		primary_action_label: __("Sync"),
+		primary_action(values) {
+			frm.call("sync_budget", { fiscal_year: values.fiscal_year }).then(() => {
+				dialog.hide();
+				frm.reload_doc();
+			});
 		},
 	});
 	dialog.show();

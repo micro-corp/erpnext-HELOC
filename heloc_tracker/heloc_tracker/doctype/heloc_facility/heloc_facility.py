@@ -256,3 +256,132 @@ class HELOCFacility(Document):
 		linked = frappe.get_all("HELOC Tranche", filters={"heloc": self.name}, limit=1)
 		if linked:
 			frappe.throw(_("This facility still has linked HELOC Tranche records. Delete or reassign those first."))
+
+	@frappe.whitelist()
+	def sync_budget(self, fiscal_year):
+		"""
+		Aggregates every linked Tranche's amortization schedule (interest +
+		principal) for the given Fiscal Year and pushes it into ERPNext's
+		native Budget doctype, budgeted against this Facility's Cost Center.
+
+		ERPNext only supports budgeting against a Cost Center or Project -
+		there's no "budget against Account" option - so this requires
+		Cost Center to be set on the Facility first.
+
+		Known simplification: ERPNext applies one Monthly Distribution curve
+		to every account in a Budget, but interest and principal each have
+		their own (different) monthly shape on an amortizing loan. This sync
+		sets accurate annual totals per account and leaves monthly
+		distribution at ERPNext's default (even split) rather than faking a
+		precise monthly curve that the tool can't actually represent.
+		"""
+		if not self.cost_center:
+			frappe.throw(
+				_(
+					"Set Cost Center on this Facility first. ERPNext's Budget doctype only "
+					"budgets against a Cost Center or Project - create a dedicated Cost Center "
+					"for this facility and link it here."
+				)
+			)
+
+		fy = frappe.db.get_value(
+			"Fiscal Year", fiscal_year, ["year_start_date", "year_end_date"], as_dict=True
+		)
+		if not fy:
+			frappe.throw(_("Fiscal Year {0} not found.").format(fiscal_year))
+
+		tranches = frappe.get_all(
+			"HELOC Tranche",
+			filters={"heloc": self.name},
+			fields=["name", "interest_expense_account", "liability_account"],
+		)
+		if not tranches:
+			frappe.throw(_("No tranches are linked to this facility yet."))
+
+		tranche_map = {t.name: t for t in tranches}
+
+		rows = frappe.get_all(
+			"HELOC Amortization Entry",
+			filters={
+				"parent": ["in", list(tranche_map.keys())],
+				"payment_date": ["between", [fy.year_start_date, fy.year_end_date]],
+			},
+			fields=["parent", "principal_portion", "interest_portion"],
+		)
+
+		account_totals = {}
+		for row in rows:
+			t = tranche_map.get(row.parent)
+			if not t:
+				continue
+			if t.interest_expense_account:
+				account_totals[t.interest_expense_account] = flt(account_totals.get(t.interest_expense_account)) + flt(row.interest_portion)
+			if t.liability_account:
+				account_totals[t.liability_account] = flt(account_totals.get(t.liability_account)) + flt(row.principal_portion)
+
+		if not account_totals:
+			frappe.throw(
+				_("No schedule rows fall within Fiscal Year {0} ({1} to {2}). Generate schedules first.").format(
+					fiscal_year, fy.year_start_date, fy.year_end_date
+				)
+			)
+
+		existing = frappe.get_all(
+			"Budget",
+			filters={
+				"company": self.company,
+				"fiscal_year": fiscal_year,
+				"budget_against": "Cost Center",
+				"cost_center": self.cost_center,
+			},
+			limit=1,
+		)
+
+		if existing:
+			old = frappe.get_doc("Budget", existing[0].name)
+			if old.docstatus == 1:
+				# Submitted Budgets can't be edited in place - cancel and
+				# create an amended replacement, the standard Frappe pattern
+				# for revising a submitted document.
+				frappe.flags.heloc_tracker_allow_cancel = True
+				old.cancel()
+				frappe.flags.heloc_tracker_allow_cancel = False
+				budget = frappe.new_doc("Budget")
+				budget.amended_from = old.name
+			else:
+				budget = old
+		else:
+			budget = frappe.new_doc("Budget")
+
+		budget.company = self.company
+		budget.fiscal_year = fiscal_year
+		budget.budget_against = "Cost Center"
+		budget.cost_center = self.cost_center
+		budget.applicable_on_booking_actual_expenses = 1
+		budget.applicable_on_material_request = 0
+		budget.applicable_on_purchase_order = 0
+		budget.action_if_annual_budget_exceeded = budget.action_if_annual_budget_exceeded or "Warn"
+		budget.action_if_accumulated_monthly_budget_exceeded = budget.action_if_accumulated_monthly_budget_exceeded or "Warn"
+
+		# This Budget doc is treated as fully owned/managed by this Facility -
+		# its accounts table is replaced wholesale each sync rather than
+		# merged, so don't add unrelated accounts to it manually.
+		budget.set("accounts", [])
+		for account, amount in account_totals.items():
+			budget.append("accounts", {"account": account, "budget_amount": flt(amount, 2)})
+
+		if budget.is_new():
+			budget.insert()
+		else:
+			budget.save()
+		budget.submit()
+
+		self.last_synced_budget = budget.name
+		self.save()
+
+		frappe.msgprint(
+			_("Synced Budget {0} for Fiscal Year {1} - {2} account(s), total {3}.").format(
+				budget.name, fiscal_year, len(account_totals), flt(sum(account_totals.values()), 2)
+			)
+		)
+		return budget.name

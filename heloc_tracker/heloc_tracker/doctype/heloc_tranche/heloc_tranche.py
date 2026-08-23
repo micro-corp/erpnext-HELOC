@@ -240,18 +240,26 @@ class HELOCTranche(Document):
 		je.posting_date = row.payment_date
 		je.user_remark = _("HELOC payment - {0} - {1}").format(self.tranche_name, row.payment_date)
 
+		# If the parent Facility has a Cost Center set up for Budget
+		# integration, tag it on the real expense/liability lines so
+		# ERPNext's Budget vs Actual report reflects this payment. Not
+		# tagged on the Bank line - that's not what's being budgeted.
+		cost_center = frappe.db.get_value("HELOC Facility", self.heloc, "cost_center") if self.heloc else None
+
 		accounts = []
 		if flt(row.interest_portion) > 0:
 			accounts.append({
 				"account": self.interest_expense_account,
 				"debit_in_account_currency": flt(row.interest_portion),
 				"credit_in_account_currency": 0,
+				"cost_center": cost_center,
 			})
 		if flt(row.principal_portion) > 0:
 			accounts.append({
 				"account": self.liability_account,
 				"debit_in_account_currency": flt(row.principal_portion),
 				"credit_in_account_currency": 0,
+				"cost_center": cost_center,
 			})
 		accounts.append({
 			"account": self.bank_account,
