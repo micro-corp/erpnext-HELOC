@@ -23,7 +23,10 @@
   "start_date",
   "term_months",
   "section_break_2",
-  "amortization_schedule"
+  "amortization_schedule",
+  "section_break_3",
+  "carved_out_from",
+  "carve_out_journal_entry"
  ],
  "fields": [
   {
@@ -151,6 +154,29 @@
    "fieldname": "amortization_schedule",
    "fieldtype": "Table",
    "options": "HELOC Amortization Entry"
+  },
+  {
+   "fieldname": "section_break_3",
+   "fieldtype": "Section Break",
+   "label": "Carve-Out Origin",
+   "collapsible": 1,
+   "depends_on": "eval:doc.carved_out_from"
+  },
+  {
+   "description": "If this tranche was created via Carve Out New Tranche, the Revolving tranche it was split from.",
+   "fieldname": "carved_out_from",
+   "fieldtype": "Link",
+   "label": "Carved Out From",
+   "options": "HELOC Tranche",
+   "read_only": 1
+  },
+  {
+   "description": "The Journal Entry that moved the balance from the Revolving tranche into this one. Kept here so a cancellation of this entry can be detected and blocked.",
+   "fieldname": "carve_out_journal_entry",
+   "fieldtype": "Link",
+   "label": "Carve-Out Journal Entry",
+   "options": "Journal Entry",
+   "read_only": 1
   }
  ],
  "links": [],

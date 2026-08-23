@@ -51,7 +51,8 @@ bench restart
 ```
 
 (`get-app` here takes a local path since this isn't published to a git remote — adjust if you push it
-to your own git repo instead, in which case pass the repo URL.)
+to your own git repo instead, in which case pass the repo URL. Compatible with Frappe v16, declared
+in `pyproject.toml` under `[tool.bench.frappe-dependencies]`.)
 
 ## Usage
 

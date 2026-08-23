@@ -95,7 +95,9 @@ class HELOCFacility(Document):
 
 		je = frappe.get_doc("Journal Entry", self.credit_limit_journal_entry)
 		if je.docstatus == 1:
+			frappe.flags.heloc_tracker_allow_cancel = True
 			je.cancel()
+			frappe.flags.heloc_tracker_allow_cancel = False
 
 		self.credit_limit_journal_entry = None
 		self.save()
@@ -186,6 +188,10 @@ class HELOCFacility(Document):
 		je.insert()
 		je.submit()
 
+		new_tranche.carved_out_from = revolving.name
+		new_tranche.carve_out_journal_entry = je.name
+		new_tranche.save()
+
 		revolving.current_balance = flt(revolving.current_balance) - amount
 		revolving.save()
 
@@ -198,3 +204,8 @@ class HELOCFacility(Document):
 			)
 		)
 		return new_tranche.name
+
+	def on_trash(self):
+		linked = frappe.get_all("HELOC Tranche", filters={"heloc": self.name}, limit=1)
+		if linked:
+			frappe.throw(_("This facility still has linked HELOC Tranche records. Delete or reassign those first."))

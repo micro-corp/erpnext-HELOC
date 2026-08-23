@@ -3,6 +3,15 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import add_months, flt, getdate
 
+PROTECTED_ROW_FIELDS = (
+	"payment_date",
+	"opening_balance",
+	"scheduled_payment",
+	"principal_portion",
+	"interest_portion",
+	"closing_balance",
+)
+
 
 class HELOCTranche(Document):
 	def validate(self):
@@ -10,6 +19,11 @@ class HELOCTranche(Document):
 		if not self.amortization_schedule and not self.current_balance:
 			self.current_balance = self.original_principal
 
+		self.validate_single_revolving_tranche()
+		self.validate_accounts()
+		self.validate_posted_rows_unchanged()
+
+	def validate_single_revolving_tranche(self):
 		if self.tranche_type == "Revolving" and self.heloc:
 			duplicate = frappe.get_all(
 				"HELOC Tranche",
@@ -22,6 +36,86 @@ class HELOCTranche(Document):
 			)
 			if duplicate:
 				frappe.throw(_("This HELOC Facility already has a Revolving tranche ({0}). Only one is expected.").format(duplicate[0].name))
+
+	def validate_accounts(self):
+		"""
+		Cross-checks the three linked accounts actually belong to this
+		Tranche's Company and are the expected type - nothing in ERPNext
+		itself stops you from picking a mismatched or Group account here.
+		"""
+		checks = [
+			("liability_account", "Liability", _("Liability Account")),
+			("interest_expense_account", "Expense", _("Interest Expense Account")),
+			("bank_account", "Asset", _("Bank Account")),
+		]
+		for fieldname, expected_root_type, label in checks:
+			account = self.get(fieldname)
+			if not account:
+				continue
+
+			acc = frappe.db.get_value(
+				"Account", account, ["company", "root_type", "is_group"], as_dict=True
+			)
+			if not acc:
+				continue
+
+			if self.company and acc.company != self.company:
+				frappe.throw(
+					_("{0} ({1}) belongs to company {2}, not {3}.").format(
+						label, account, acc.company, self.company
+					)
+				)
+			if acc.is_group:
+				frappe.throw(_("{0} ({1}) is a Group account and can't be posted to directly. Pick a ledger account.").format(label, account))
+			if acc.root_type != expected_root_type:
+				frappe.throw(
+					_("{0} ({1}) is a {2} account - expected {3}.").format(
+						label, account, acc.root_type, expected_root_type
+					)
+				)
+
+	def validate_posted_rows_unchanged(self):
+		"""
+		Once a schedule row is posted (has a submitted Journal Entry behind
+		it), its financial figures must not be editable in the grid -
+		otherwise the app's numbers can silently drift away from what's
+		actually in the GL. Also blocks deleting a posted row outright.
+		"""
+		if self.is_new():
+			return
+
+		before = self.get_doc_before_save()
+		if not before:
+			return
+
+		old_rows = {r.name: r for r in before.amortization_schedule if r.posted}
+		new_rows = {r.name: r for r in self.amortization_schedule}
+
+		for name, old_row in old_rows.items():
+			new_row = new_rows.get(name)
+			if new_row is None:
+				frappe.throw(
+					_("Row for {0} is posted (Journal Entry {1}) and can't be deleted.").format(
+						old_row.payment_date, old_row.journal_entry
+					)
+				)
+			for field in PROTECTED_ROW_FIELDS:
+				old_val = old_row.get(field)
+				new_val = new_row.get(field)
+				changed = (old_val != new_val) if field == "payment_date" else (flt(old_val) != flt(new_val))
+				if changed:
+					frappe.throw(
+						_("Row for {0} is already posted (Journal Entry {1}) - its figures can't be edited.").format(
+							old_row.payment_date, old_row.journal_entry
+						)
+					)
+
+	def on_trash(self):
+		posted = [r for r in self.amortization_schedule if r.posted]
+		if posted:
+			frappe.throw(
+				_("This tranche has {0} posted payment(s) with linked Journal Entries and can't be deleted. Set Status to Closed instead.").format(len(posted))
+			)
 
 	@frappe.whitelist()
 	def generate_schedule(self):
@@ -40,8 +134,17 @@ class HELOCTranche(Document):
 				)
 			)
 
-		if not (self.original_principal and self.interest_rate and self.term_months and self.start_date):
-			frappe.throw(_("Original Principal, Interest Rate, Term (Months) and Start Date are all required to generate a schedule."))
+		missing = []
+		if not self.original_principal:
+			missing.append(_("Original Principal"))
+		if self.interest_rate is None:
+			missing.append(_("Interest Rate"))
+		if not self.term_months:
+			missing.append(_("Term (Months)"))
+		if not self.start_date:
+			missing.append(_("Start Date"))
+		if missing:
+			frappe.throw(_("Required before generating a schedule: {0}").format(", ".join(missing)))
 
 		if self.amortization_schedule:
 			frappe.throw(_("Schedule already has rows. Clear the existing schedule table first if you want to regenerate it."))
@@ -74,11 +177,11 @@ class HELOCTranche(Document):
 
 			self.append("amortization_schedule", {
 				"payment_date": payment_date,
-				"opening_balance": round(balance, 2),
-				"scheduled_payment": round(payment_local, 2),
-				"principal_portion": round(principal_portion, 2),
-				"interest_portion": round(interest, 2),
-				"closing_balance": round(closing, 2),
+				"opening_balance": flt(balance, 2),
+				"scheduled_payment": flt(payment_local, 2),
+				"principal_portion": flt(principal_portion, 2),
+				"interest_portion": flt(interest, 2),
+				"closing_balance": flt(closing, 2),
 				"posted": 0,
 			})
 
@@ -104,6 +207,14 @@ class HELOCTranche(Document):
 
 		if not (self.liability_account and self.interest_expense_account and self.bank_account):
 			frappe.throw(_("Liability Account, Interest Expense Account and Bank Account must all be set before posting."))
+
+		if abs(flt(row.opening_balance) - flt(self.current_balance)) > 0.01:
+			frappe.throw(
+				_(
+					"This row's Opening Balance ({0}) doesn't match the tranche's Current Balance ({1}). "
+					"Check for a skipped, reordered, or edited row before posting."
+				).format(row.opening_balance, self.current_balance)
+			)
 
 		je = frappe.new_doc("Journal Entry")
 		je.voucher_type = "Journal Entry"
@@ -134,13 +245,26 @@ class HELOCTranche(Document):
 		je.insert()
 		je.submit()
 
-		row.posted = 1
-		row.journal_entry = je.name
-		self.current_balance = row.closing_balance
-		self.save()
+		try:
+			row.posted = 1
+			row.journal_entry = je.name
+			self.current_balance = row.closing_balance
+			self.save()
 
-		if self.heloc:
-			frappe.get_doc("HELOC Facility", self.heloc).refresh_balance()
+			if self.heloc:
+				frappe.get_doc("HELOC Facility", self.heloc).refresh_balance()
+		except Exception:
+			frappe.log_error(
+				title="HELOC Tracker: payment JE posted but linking failed",
+				message=frappe.get_traceback(),
+			)
+			frappe.throw(
+				_(
+					"Journal Entry {0} was created and submitted, but updating this tranche's record failed. "
+					"The JE exists in your GL - check it manually and re-run Post Next Payment only after "
+					"confirming this row isn't already covered, or you'll double-post."
+				).format(je.name)
+			)
 
 		frappe.msgprint(_("Posted Journal Entry {0} for {1}.").format(je.name, row.payment_date))
 		return je.name

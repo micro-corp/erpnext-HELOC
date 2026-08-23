@@ -22,6 +22,15 @@ add_to_apps_screen = [
 	}
 ]
 
+# Keeps the app's numbers honest if a Journal Entry it posted gets touched
+# from outside the app's own buttons - see journal_entry_hooks.py.
+doc_events = {
+	"Journal Entry": {
+		"before_cancel": "heloc_tracker.heloc_tracker.journal_entry_hooks.before_cancel",
+		"on_cancel": "heloc_tracker.heloc_tracker.journal_entry_hooks.on_cancel",
+	}
+}
+
 # No fixtures, no scheduled jobs by default.
 # Posting is manual (button click) by design, so nothing gets posted
 # to the GL without you explicitly reviewing and confirming it.
