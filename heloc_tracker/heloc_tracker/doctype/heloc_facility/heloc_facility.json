@@ -13,6 +13,9 @@
   "credit_limit",
   "total_balance",
   "available_credit",
+  "section_break_3",
+  "cost_center",
+  "last_synced_budget",
   "section_break_1",
   "group_liability_account",
   "section_break_2",
@@ -20,9 +23,6 @@
   "credit_limit_offset_account",
   "column_break_2",
   "credit_limit_journal_entry",
-  "section_break_3",
-  "cost_center",
-  "last_synced_budget",
   "section_break_4",
   "facility_burndown_chart"
  ],
@@ -128,7 +128,7 @@
   {
    "fieldname": "section_break_3",
    "fieldtype": "Section Break",
-   "label": "Budget Integration"
+   "label": "Cost Center / Budget"
   },
   {
    "description": "Optional. ERPNext's Budget doctype only budgets against a Cost Center or Project - create a dedicated Cost Center for this facility (e.g. \"HELOC - Marge Atout\") and link it here to enable Sync Budget. Once set, every Journal Entry this app posts tags this Cost Center so ERPNext's Budget vs Actual report reflects real postings.",
@@ -147,8 +147,7 @@
   {
    "fieldname": "section_break_4",
    "fieldtype": "Section Break",
-   "label": "Total Balance Over Time",
-   "collapsible": 1
+   "label": "Total Balance Over Time"
   },
   {
    "fieldname": "facility_burndown_chart",

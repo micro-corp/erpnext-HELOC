@@ -9,6 +9,7 @@
   "heloc",
   "company",
   "lender",
+  "cost_center",
   "tranche_type",
   "status",
   "column_break_1",
@@ -66,6 +67,15 @@
    "fieldname": "lender",
    "fieldtype": "Data",
    "label": "Lender"
+  },
+  {
+   "fetch_from": "heloc.cost_center",
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Cost Center (from Facility)",
+   "options": "Cost Center",
+   "read_only": 1,
+   "description": "Set on the HELOC Facility. Shown here for visibility - this is what gets tagged on Post Next Payment's Journal Entry lines for Budget tracking."
   },
   {
    "fieldname": "tranche_type",
@@ -171,8 +181,7 @@
   {
    "fieldname": "section_break_charts",
    "fieldtype": "Section Break",
-   "label": "Charts",
-   "collapsible": 1
+   "label": "Charts"
   },
   {
    "fieldname": "burndown_chart",
