@@ -19,16 +19,34 @@ Credit, plus a "Tranches" connections tab listing every linked HELOC Tranche.
   tranche's balance and refreshes the facility rollup automatically.
 
 **HELOC Tranche** — one record per tranche (each Prêt Lié tranche, or the Revolving Portion), always
-linked to a parent HELOC Facility, with its own liability/interest GL accounts and bank account.
+linked to a parent HELOC Facility, with its own liability/interest GL accounts and bank account. Its
+payments live as their own **HELOC Amortization Entry** documents (see below), linked back via a
+Tranche field and shown on a "Payments" connections tab.
 
 - **Generate Schedule** button — for Fixed tranches, runs standard level-payment amortization math
-  from Original Principal / Rate / Term / Start Date and populates the schedule table.
-- **Post Next Payment** button — creates and *submits* a Journal Entry for the earliest unposted
-  schedule row (debit interest + principal, credit bank), links it back, updates the tranche's
-  Current Balance, and pushes the updated total up to the parent Facility.
+  from Original Principal / Rate / Term / Start Date and creates one **Draft** HELOC Amortization
+  Entry per payment. Nothing posts to the GL yet — see below.
+- **Add Manual Payment** button — opens a new HELOC Amortization Entry (Entry Type: Manual) with
+  Tranche and Opening Balance pre-filled. The only way to add a payment on a Revolving tranche; also
+  useful for corrections, back-entries, or off-schedule payments on a Fixed tranche.
+- **Post Next Payment** button — a convenience shortcut that Submits the earliest Draft entry for that
+  tranche (see below for what Submit does).
 - Only one Revolving tranche is allowed per Facility (validated on save).
 - Revolving tranches are excluded from schedule generation (rate and balance both float, so no fixed
-  formula fits) — add/edit rows by hand each statement instead.
+  formula fits) — use Add Manual Payment each statement instead.
+
+**HELOC Amortization Entry** — a standalone, **submittable** document: one per payment, linked to a
+Tranche. This is where posting actually happens:
+
+- **Draft** — not posted. Fully editable/deletable, and this is what makes Generate Schedule double as
+  a simulation: the whole projected schedule shows up in the Tranche's charts and totals immediately,
+  with zero GL impact, so you can review the full payoff curve before committing to any of it.
+- **Submit** — the only thing that posts. Creates and submits the Journal Entry (debit interest +
+  principal, credit bank), links it back onto the entry, and updates the Tranche's Current Balance
+  (which cascades up to the Facility's rollup). After Submit, the entry's figures are locked — correct
+  it via Cancel + Amend, standard Frappe submittable behavior.
+- **Cancel** — reverses a Submitted entry, but only if it's the most recently posted one on that
+  tranche (balances have to unwind in the same order they were posted in).
 
 ## End-to-end flow
 
@@ -36,7 +54,8 @@ linked to a parent HELOC Facility, with its own liability/interest GL accounts a
 2. Create the **Revolving** HELOC Tranche linked to it (accounts + starting balance).
 3. Create each **Fixed (Prêt Lié)** tranche linked to it, or use **Carve Out New Tranche** from the
    Facility to split funds out of the Revolving Portion into a new one on the fly.
-4. Each month: open each tranche, click **Post Next Payment**, review the Journal Entry.
+4. Each month: open each tranche, Submit the next Draft entry (directly, or via **Post Next
+   Payment**), review the Journal Entry.
 5. Check the Facility record any time for Total Balance / Available Credit — it's always current.
 
 ## Install
@@ -61,12 +80,15 @@ built, so skipping this step is why the tile shows blank.)
 
 1. Create a **HELOC Facility** — Credit Limit, Company, Lender.
 2. Create a **HELOC Tranche** per tranche, linked to that Facility:
-   - Revolving: fill the accounts, leave schedule blank, add rows manually as statements come in.
+   - Revolving: fill the accounts, no schedule to generate — use **Add Manual Payment** as statements
+     come in.
    - Fixed tranches: fill Original Principal, Interest Rate, Term (Months), Start Date, and the three
-     accounts (Liability, Interest Expense, Bank). Click **Generate Schedule**.
+     accounts (Liability, Interest Expense, Bank). Click **Generate Schedule** — this creates Draft
+     entries you can review before posting anything.
    - Alternatively, use **Carve Out New Tranche** on the Facility to create a Fixed tranche directly
      out of the Revolving balance, with the moving-balance Journal Entry posted automatically.
-3. Each month, open a tranche and click **Post Next Payment**. Review the Journal Entry it creates.
+3. Each month, Submit the next Draft HELOC Amortization Entry (open it directly, or use **Post Next
+   Payment** on the Tranche). Review the Journal Entry it creates.
 4. Current Balance (tranche) and Total Balance / Available Credit (facility) stay in sync
    automatically — no manual rollup math needed.
 
@@ -80,8 +102,8 @@ github.com/frappe/erpnext/wiki/Migration-Guide-To-ERPNext-Version-16, both curre
   list views/`get_all`/`get_list`. All doctype JSONs here already use `"sort_field": "creation"`.
 - **Journal Entry fields**: `debit_in_account_currency` / `credit_in_account_currency` on the
   `Journal Entry Account` child table are unchanged in v16 — confirmed against the current
-  `develop`/v16 source, so both `post_next_payment()` and `carve_out_tranche()`'s JE construction
-  are fine as written.
+  `develop`/v16 source, so both the posting logic in `HELOCAmortizationEntry.post_to_gl()` and
+  `carve_out_tranche()`'s JE construction are fine as written.
 - **Removed/changed whitelisted methods in v16** (`make_bank_account`, `make_pricing_rule`,
   Timesheet-billing-via-API) don't overlap with anything this app calls, so no changes needed there.
 - **`add_to_apps_screen` hook** (v16 Desktop icon grid): implemented in `hooks.py`, route points at

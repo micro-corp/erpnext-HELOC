@@ -32,6 +32,24 @@ frappe.ui.form.on("HELOC Facility", {
 			open_carve_out_dialog(frm);
 		}).addClass("btn-primary");
 
+		// Only offer this when no Revolving tranche exists yet for this
+		// facility - once one exists, HELOCTranche.validate() blocks a
+		// second one anyway, so the button would just fail.
+		frappe.db.get_list("HELOC Tranche", {
+			filters: { heloc: frm.doc.name, tranche_type: "Revolving" },
+			limit: 1,
+		}).then((existing) => {
+			if (existing.length) return;
+			frm.add_custom_button(__("Create Revolving Tranche"), () => {
+				frappe.new_doc("HELOC Tranche", {
+					heloc: frm.doc.name,
+					company: frm.doc.company,
+					lender: frm.doc.lender,
+					tranche_type: "Revolving",
+				});
+			}).addClass("btn-primary");
+		});
+
 		if (frm.doc.credit_limit_journal_entry) {
 			frm.add_custom_button(__("Cancel Credit Limit Posting"), () => {
 				frappe.confirm(
@@ -60,15 +78,46 @@ frappe.ui.form.on("HELOC Facility", {
 			}, __("Credit Limit"));
 		}
 
-		if (frm.doc.cost_center) {
-			frm.add_custom_button(__("Sync Budget"), () => {
-				open_sync_budget_dialog(frm);
-			}, __("Budget"));
-		}
+		// Sync Budget is intentionally not wired up here - it was built
+		// against an assumed ERPNext Budget schema that doesn't match this
+		// instance's actual v16 schema (one Budget per account, Income/
+		// Expense accounts only). On hold pending a redesign - see
+		// sync_budget()'s docstring in heloc_facility.py for details.
 
+		render_facility_rollup(frm);
 		render_facility_burndown(frm);
 	},
 });
+
+function render_facility_rollup(frm) {
+	const wrapper = frm.get_field("rollup_html").$wrapper;
+	wrapper.html(`<p class="text-muted small">${__("Loading...")}</p>`);
+
+	frm.call("get_rollup_stats").then((r) => {
+		const s = r.message || {};
+		if (!s.total_original_principal && s.total_original_principal !== 0) {
+			wrapper.html(`<p class="text-muted small">${__("No tranches linked yet.")}</p>`);
+			return;
+		}
+
+		const stat = (label, value) => `
+			<div style="flex: 1 1 150px; min-width: 150px; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 6px;">
+				<div class="text-muted small">${label}</div>
+				<div style="font-size: 16px; font-weight: 600;">${format_currency(value, frm.doc.currency)}</div>
+			</div>`;
+
+		wrapper.html(`
+			<div style="display: flex; flex-wrap: wrap; gap: 10px;">
+				${stat(__("Total Original Principal"), s.total_original_principal)}
+				${stat(__("Total Current Balance"), s.total_current_balance)}
+				${stat(__("Total Principal (full schedule)"), s.total_principal_scheduled)}
+				${stat(__("Total Interest (full schedule)"), s.total_interest_scheduled)}
+				${stat(__("Principal Posted to Date"), s.total_principal_posted)}
+				${stat(__("Interest Posted to Date"), s.total_interest_posted)}
+			</div>
+		`);
+	});
+}
 
 function render_facility_burndown(frm) {
 	const wrapper = frm.get_field("facility_burndown_chart").$wrapper;
@@ -187,37 +236,6 @@ function open_carve_out_dialog(frm) {
 					});
 				}
 			);
-		},
-	});
-	dialog.show();
-}
-
-function open_sync_budget_dialog(frm) {
-	const dialog = new frappe.ui.Dialog({
-		title: __("Sync Budget"),
-		fields: [
-			{
-				fieldname: "fiscal_year",
-				label: __("Fiscal Year"),
-				fieldtype: "Link",
-				options: "Fiscal Year",
-				reqd: 1,
-				default: frappe.defaults.get_default("fiscal_year"),
-			},
-			{
-				fieldname: "note",
-				fieldtype: "HTML",
-				options: `<p class="text-muted">${__(
-					"Sums every linked tranche's interest and principal for this Fiscal Year into an ERPNext Budget document against this facility's Cost Center. If a Budget already exists for that Cost Center and Fiscal Year, it's replaced (cancelled and re-created as an amendment if already submitted)."
-				)}</p>`,
-			},
-		],
-		primary_action_label: __("Sync"),
-		primary_action(values) {
-			frm.call("sync_budget", { fiscal_year: values.fiscal_year }).then(() => {
-				dialog.hide();
-				frm.reload_doc();
-			});
 		},
 	});
 	dialog.show();

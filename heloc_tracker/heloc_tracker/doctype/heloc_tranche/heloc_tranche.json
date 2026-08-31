@@ -24,8 +24,8 @@
   "start_date",
   "tranche_term_months",
   "total_amortization_months",
-  "section_break_2",
-  "amortization_schedule",
+  "section_break_summary",
+  "summary_html",
   "section_break_charts",
   "burndown_chart",
   "column_break_charts",
@@ -169,14 +169,14 @@
    "label": "Total Amortization (Months)"
   },
   {
-   "fieldname": "section_break_2",
+   "fieldname": "section_break_summary",
    "fieldtype": "Section Break",
-   "label": "Amortization Schedule"
+   "label": "Summary",
+   "description": "Amortization entries (Draft and Submitted) live as their own records now, not a table here - see the 'Payments' connection below, or use the buttons above to generate/add/post them."
   },
   {
-   "fieldname": "amortization_schedule",
-   "fieldtype": "Table",
-   "options": "HELOC Amortization Entry"
+   "fieldname": "summary_html",
+   "fieldtype": "HTML"
   },
   {
    "fieldname": "section_break_charts",
@@ -221,8 +221,14 @@
    "read_only": 1
   }
  ],
- "links": [],
- "modified": "2026-08-18 00:00:00.000000",
+ "links": [
+  {
+   "group": "Payments",
+   "link_doctype": "HELOC Amortization Entry",
+   "link_fieldname": "tranche"
+  }
+ ],
+ "modified": "2026-08-28 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "HELOC Tracker",
  "name": "HELOC Tranche",

@@ -1,22 +1,38 @@
 {
  "actions": [],
+ "autoname": "HAE-.#####",
  "creation": "2026-08-18 00:00:00.000000",
  "doctype": "DocType",
- "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "tranche",
   "payment_date",
-  "opening_balance",
+  "entry_type",
   "column_break_1",
+  "opening_balance",
   "scheduled_payment",
+  "column_break_2",
   "principal_portion",
   "interest_portion",
   "closing_balance",
   "section_break_1",
-  "posted",
-  "journal_entry"
+  "skip_opening_balance_check",
+  "remarks",
+  "section_break_2",
+  "company",
+  "journal_entry",
+  "amended_from"
  ],
  "fields": [
+  {
+   "fieldname": "tranche",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Tranche",
+   "options": "HELOC Tranche",
+   "reqd": 1
+  },
   {
    "fieldname": "payment_date",
    "fieldtype": "Date",
@@ -25,21 +41,36 @@
    "reqd": 1
   },
   {
-   "fieldname": "opening_balance",
-   "fieldtype": "Currency",
+   "default": "Scheduled",
+   "fieldname": "entry_type",
+   "fieldtype": "Select",
    "in_list_view": 1,
-   "label": "Opening Balance",
-   "read_only": 1
+   "label": "Entry Type",
+   "options": "Scheduled\nManual",
+   "description": "Scheduled: created by Generate Schedule. Manual: added by hand (a corrected, backdated, or off-schedule payment). Both work the same way - a Draft until you Submit it."
   },
   {
    "fieldname": "column_break_1",
    "fieldtype": "Column Break"
   },
   {
+   "fieldname": "opening_balance",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Opening Balance",
+   "reqd": 1,
+   "description": "Must match the Tranche's Current Balance when this entry is submitted, unless Skip Opening Balance Check is ticked below."
+  },
+  {
    "fieldname": "scheduled_payment",
    "fieldtype": "Currency",
    "in_list_view": 1,
-   "label": "Scheduled Payment"
+   "label": "Payment Amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
   },
   {
    "fieldname": "principal_portion",
@@ -56,20 +87,40 @@
   {
    "fieldname": "closing_balance",
    "fieldtype": "Currency",
-   "in_list_view": 1,
    "label": "Closing Balance",
-   "read_only": 1
+   "read_only": 1,
+   "description": "Computed: Opening Balance minus Principal."
   },
   {
+   "collapsible": 1,
+   "depends_on": "eval:doc.entry_type=='Manual'",
    "fieldname": "section_break_1",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Manual Entry Options"
   },
   {
    "default": "0",
-   "fieldname": "posted",
+   "description": "Only tick this for an intentional correction or back-entry. Normally, submitting refuses to post if Opening Balance doesn't match the Tranche's Current Balance - that check is what catches skipped or reordered entries.",
+   "fieldname": "skip_opening_balance_check",
    "fieldtype": "Check",
-   "in_list_view": 1,
-   "label": "Posted",
+   "label": "Skip Opening Balance Check"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "section_break_2",
+   "fieldtype": "Section Break",
+   "label": "Posting"
+  },
+  {
+   "fetch_from": "tranche.company",
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
    "read_only": 1
   },
   {
@@ -77,18 +128,62 @@
    "fieldtype": "Link",
    "label": "Journal Entry",
    "options": "Journal Entry",
+   "read_only": 1,
+   "description": "Set automatically on Submit. Nothing posts to the GL while this entry is a Draft."
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "HELOC Amortization Entry",
+   "print_hide": 1,
    "read_only": 1
   }
  ],
- "istable": 1,
+ "is_submittable": 1,
+ "istable": 0,
  "links": [],
- "modified": "2026-08-18 00:00:00.000000",
+ "modified": "2026-08-28 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "HELOC Tracker",
  "name": "HELOC Amortization Entry",
  "owner": "Administrator",
- "permissions": [],
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
  "sort_field": "creation",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "title_field": "payment_date",
+ "track_changes": 1
 }

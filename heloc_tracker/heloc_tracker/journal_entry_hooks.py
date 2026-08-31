@@ -1,6 +1,5 @@
 import frappe
 from frappe import _
-from frappe.utils import flt
 
 
 def before_cancel(doc, method=None):
@@ -12,8 +11,15 @@ def before_cancel(doc, method=None):
 	tranche already; a credit-limit memo cancel should go through the
 	Facility's own button so its link field clears in step). Our own
 	controllers set a flag to bypass this when they cancel intentionally.
-	Ordinary payment JEs (from Post Next Payment) are always allowed to
-	cancel - see on_cancel below for how those get reconciled.
+
+	Ordinary payment JEs (posted when a HELOC Amortization Entry is
+	Submitted) are always allowed to cancel here - see on_cancel below for
+	how those get reconciled. HELOCAmortizationEntry.reverse_posting()
+	still enforces its own "only the most recently posted entry can be
+	cancelled" rule when the reconciliation runs, so an out-of-order
+	cancellation attempted from the Journal Entry side is still caught -
+	just slightly later in the process, via that throw rolling back this
+	cancellation entirely.
 	"""
 	if frappe.flags.get("heloc_tracker_allow_cancel"):
 		return
@@ -50,35 +56,33 @@ def before_cancel(doc, method=None):
 def on_cancel(doc, method=None):
 	"""
 	Runs after a Journal Entry is cancelled. If it was a HELOC Tracker
-	payment JE (from Post Next Payment), reconcile automatically: un-post
-	the schedule row, revert the tranche's Current Balance, and refresh
-	the parent Facility - so the app's numbers don't silently drift out
-	of sync with the GL just because the cancellation didn't go through
-	our own button.
+	payment JE (posted when a HELOC Amortization Entry was Submitted),
+	reconcile automatically: cancel the linked HELOC Amortization Entry
+	too and let its own on_cancel() revert the Tranche's Current Balance -
+	so the app's numbers don't silently drift out of sync with the GL just
+	because the cancellation didn't start from our own Submit/Cancel flow.
+
+	HELOCAmortizationEntry.reverse_posting() sees the Journal Entry is
+	already cancelled (docstatus 2) at this point and skips re-cancelling
+	it, so there's no recursion between the two hooks.
 	"""
-	rows = frappe.get_all(
+	entries = frappe.get_all(
 		"HELOC Amortization Entry",
-		filters={"journal_entry": doc.name},
-		fields=["name", "parent", "opening_balance"],
+		filters={"journal_entry": doc.name, "docstatus": 1},
+		pluck="name",
 	)
-	if not rows:
+	if not entries:
 		return
 
-	for row in rows:
-		tranche = frappe.get_doc("HELOC Tranche", row.parent)
-		for schedule_row in tranche.amortization_schedule:
-			if schedule_row.name == row.name:
-				schedule_row.posted = 0
-				schedule_row.journal_entry = None
-				break
-		tranche.current_balance = flt(row.opening_balance)
-		tranche.save()
-
-		if tranche.heloc:
-			frappe.get_doc("HELOC Facility", tranche.heloc).refresh_balance()
+	for name in entries:
+		entry = frappe.get_doc("HELOC Amortization Entry", name)
+		entry.cancel()
 
 	frappe.msgprint(
-		_("Journal Entry {0} was cancelled - reverted the linked HELOC Tracker schedule row(s) and balance(s) to match.").format(doc.name),
+		_(
+			"Journal Entry {0} was cancelled - cancelled the linked HELOC Tracker amortization "
+			"entry/entries and reverted the tranche balance(s) to match."
+		).format(doc.name),
 		indicator="orange",
 		alert=True,
 	)

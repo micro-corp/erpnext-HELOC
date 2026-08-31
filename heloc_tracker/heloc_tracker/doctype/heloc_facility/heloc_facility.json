@@ -23,6 +23,8 @@
   "credit_limit_offset_account",
   "column_break_2",
   "credit_limit_journal_entry",
+  "section_break_5",
+  "rollup_html",
   "section_break_4",
   "facility_burndown_chart"
  ],
@@ -131,7 +133,7 @@
    "label": "Cost Center / Budget"
   },
   {
-   "description": "Optional. ERPNext's Budget doctype only budgets against a Cost Center or Project - create a dedicated Cost Center for this facility (e.g. \"HELOC - Marge Atout\") and link it here to enable Sync Budget. Once set, every Journal Entry this app posts tags this Cost Center so ERPNext's Budget vs Actual report reflects real postings.",
+   "description": "Optional. Tags this Cost Center on every Journal Entry this app posts (Post Next Payment), so ERPNext's own reports can filter by it. Sync Budget is currently disabled pending a redesign - see the Facility doctype's controller docstring - so this field is informational/tagging-only for now, not yet wired to an active Budget sync.",
    "fieldname": "cost_center",
    "fieldtype": "Link",
    "label": "Cost Center",
@@ -141,8 +143,18 @@
    "fieldname": "last_synced_budget",
    "fieldtype": "Link",
    "label": "Last Synced Budget",
+   "description": "Unused while Sync Budget is disabled.",
    "options": "Budget",
    "read_only": 1
+  },
+  {
+   "fieldname": "section_break_5",
+   "fieldtype": "Section Break",
+   "label": "Rollup"
+  },
+  {
+   "fieldname": "rollup_html",
+   "fieldtype": "HTML"
   },
   {
    "fieldname": "section_break_4",

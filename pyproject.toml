@@ -1,6 +1,6 @@
 [project]
 name = "heloc_tracker"
-version = "0.0.1"
+version = "0.2.0"
 description = "Borrower-side amortization tracking for hybrid HELOC / Prêt Lié liabilities in ERPNext"
 authors = [
     { name = "Jonathan", email = "you@example.com" }

@@ -6,20 +6,16 @@ app_email = "you@example.com"
 app_license = "MIT"
 
 # v16: the new Desktop screen auto-generates an icon per installed app from
-# this hook. Without it the app still works fully, it just won't get a home
-# screen tile - you'd navigate to it via search or a direct URL instead.
+# this hook. logo.png lives under public/images/ - remember bench build
+# --app heloc_tracker is required after any change here, static assets
+# aren't served until built.
 # Ref: https://docs.frappe.io/framework/user/en/apps-page
-#
-# No logo asset is bundled with this app (no /public/images dir), so the
-# tile falls back to Frappe's default icon. Add a logo file and point
-# "logo" at it (e.g. "/assets/heloc_tracker/images/logo.svg") if you want
-# a custom one - I didn't fabricate a path since no such asset exists here.
 add_to_apps_screen = [
 	{
 		"name": "heloc_tracker",
 		"title": app_title,
 		"route": "/app/heloc-facility",
-		"logo": "/assets/heloc_tracker/images/logo.svg",
+		"logo": "/assets/heloc_tracker/images/logo.png",
 	}
 ]
 

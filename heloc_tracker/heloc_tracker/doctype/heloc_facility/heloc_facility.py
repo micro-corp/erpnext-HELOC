@@ -260,6 +260,38 @@ class HELOCFacility(Document):
 			frappe.throw(_("This facility still has linked HELOC Tranche records. Delete or reassign those first."))
 
 	@frappe.whitelist()
+	def get_rollup_stats(self):
+		"""
+		Aggregates key totals across every linked tranche: how much was
+		originally borrowed, how much is outstanding now, and how much
+		principal/interest the full schedule represents versus what's
+		actually been posted so far.
+		"""
+		tranches = frappe.get_all(
+			"HELOC Tranche",
+			filters={"heloc": self.name},
+			fields=["name", "original_principal"],
+		)
+		if not tranches:
+			return {}
+
+		rows = frappe.get_all(
+			"HELOC Amortization Entry",
+			filters={"tranche": ["in", [t.name for t in tranches]], "docstatus": ["!=", 2]},
+			fields=["principal_portion", "interest_portion", "docstatus"],
+		)
+		posted_rows = [r for r in rows if r.docstatus == 1]
+
+		return {
+			"total_original_principal": flt(sum(flt(t.original_principal) for t in tranches), 2),
+			"total_current_balance": flt(self.total_balance, 2),
+			"total_principal_scheduled": flt(sum(flt(r.principal_portion) for r in rows), 2),
+			"total_interest_scheduled": flt(sum(flt(r.interest_portion) for r in rows), 2),
+			"total_principal_posted": flt(sum(flt(r.principal_portion) for r in posted_rows), 2),
+			"total_interest_posted": flt(sum(flt(r.interest_portion) for r in posted_rows), 2),
+		}
+
+	@frappe.whitelist()
 	def get_burndown_data(self):
 		"""
 		Merges every linked tranche's schedule onto one shared timeline and
@@ -278,14 +310,14 @@ class HELOCFacility(Document):
 
 		rows = frappe.get_all(
 			"HELOC Amortization Entry",
-			filters={"parent": ["in", [t.name for t in tranches]]},
-			fields=["parent", "payment_date", "closing_balance"],
+			filters={"tranche": ["in", [t.name for t in tranches]], "docstatus": ["!=", 2]},
+			fields=["tranche", "payment_date", "closing_balance"],
 			order_by="payment_date asc",
 		)
 
 		schedules = {t.name: [] for t in tranches}
 		for row in rows:
-			schedules[row.parent].append((getdate(row.payment_date), flt(row.closing_balance)))
+			schedules[row.tranche].append((getdate(row.payment_date), flt(row.closing_balance)))
 
 		all_dates = sorted({d for parent_rows in schedules.values() for d, _bal_unused in parent_rows})
 		if not all_dates:
@@ -314,130 +346,33 @@ class HELOCFacility(Document):
 		}
 
 	@frappe.whitelist()
-	def sync_budget(self, fiscal_year):
+	def sync_budget(self, fiscal_year=None):
 		"""
-		Aggregates every linked Tranche's amortization schedule (interest +
-		principal) for the given Fiscal Year and pushes it into ERPNext's
-		native Budget doctype, budgeted against this Facility's Cost Center.
+		DISABLED - on hold pending a redesign.
 
-		ERPNext only supports budgeting against a Cost Center or Project -
-		there's no "budget against Account" option - so this requires
-		Cost Center to be set on the Facility first.
+		This was built against an assumed Budget schema (one Budget doc per
+		Cost Center with a child table of multiple accounts, single
+		fiscal_year) that turned out not to match the actual ERPNext v16
+		schema on this instance. The real schema, confirmed directly from
+		erpnext/accounts/doctype/budget/budget.py on the develop branch:
 
-		Known simplification: ERPNext applies one Monthly Distribution curve
-		to every account in a Budget, but interest and principal each have
-		their own (different) monthly shape on an amortizing loan. This sync
-		sets accurate annual totals per account and leaves monthly
-		distribution at ERPNext's default (even split) rather than faking a
-		precise monthly curve that the tool can't actually represent.
+		- One Budget document covers exactly ONE account (account: DF.Link),
+		  not a table of many.
+		- from_fiscal_year / to_fiscal_year (a range), not a single
+		  fiscal_year field.
+		- Critically: validate_account() hard-rejects any account whose
+		  report_type isn't "Profit and Loss" - i.e. Budget can only ever
+		  cover Income or Expense accounts. A Tranche's Liability Account
+		  (principal) can NEVER be budgeted via ERPNext's Budget doctype,
+		  with no override. Only interest could ever be synced this way.
+
+		Left disabled rather than removed so the whitelisted method stays
+		documented and doesn't silently 404 if anything still calls it.
 		"""
-		if not self.cost_center:
-			frappe.throw(
-				_(
-					"Set Cost Center on this Facility first. ERPNext's Budget doctype only "
-					"budgets against a Cost Center or Project - create a dedicated Cost Center "
-					"for this facility and link it here."
-				)
-			)
-
-		fy = frappe.db.get_value(
-			"Fiscal Year", fiscal_year, ["year_start_date", "year_end_date"], as_dict=True
-		)
-		if not fy:
-			frappe.throw(_("Fiscal Year {0} not found.").format(fiscal_year))
-
-		tranches = frappe.get_all(
-			"HELOC Tranche",
-			filters={"heloc": self.name},
-			fields=["name", "interest_expense_account", "liability_account"],
-		)
-		if not tranches:
-			frappe.throw(_("No tranches are linked to this facility yet."))
-
-		tranche_map = {t.name: t for t in tranches}
-
-		rows = frappe.get_all(
-			"HELOC Amortization Entry",
-			filters={
-				"parent": ["in", list(tranche_map.keys())],
-				"payment_date": ["between", [fy.year_start_date, fy.year_end_date]],
-			},
-			fields=["parent", "principal_portion", "interest_portion"],
-		)
-
-		account_totals = {}
-		for row in rows:
-			t = tranche_map.get(row.parent)
-			if not t:
-				continue
-			if t.interest_expense_account:
-				account_totals[t.interest_expense_account] = flt(account_totals.get(t.interest_expense_account)) + flt(row.interest_portion)
-			if t.liability_account:
-				account_totals[t.liability_account] = flt(account_totals.get(t.liability_account)) + flt(row.principal_portion)
-
-		if not account_totals:
-			frappe.throw(
-				_("No schedule rows fall within Fiscal Year {0} ({1} to {2}). Generate schedules first.").format(
-					fiscal_year, fy.year_start_date, fy.year_end_date
-				)
-			)
-
-		existing = frappe.get_all(
-			"Budget",
-			filters={
-				"company": self.company,
-				"fiscal_year": fiscal_year,
-				"budget_against": "Cost Center",
-				"cost_center": self.cost_center,
-			},
-			limit=1,
-		)
-
-		if existing:
-			old = frappe.get_doc("Budget", existing[0].name)
-			if old.docstatus == 1:
-				# Submitted Budgets can't be edited in place - cancel and
-				# create an amended replacement, the standard Frappe pattern
-				# for revising a submitted document.
-				frappe.flags.heloc_tracker_allow_cancel = True
-				old.cancel()
-				frappe.flags.heloc_tracker_allow_cancel = False
-				budget = frappe.new_doc("Budget")
-				budget.amended_from = old.name
-			else:
-				budget = old
-		else:
-			budget = frappe.new_doc("Budget")
-
-		budget.company = self.company
-		budget.fiscal_year = fiscal_year
-		budget.budget_against = "Cost Center"
-		budget.cost_center = self.cost_center
-		budget.applicable_on_booking_actual_expenses = 1
-		budget.applicable_on_material_request = 0
-		budget.applicable_on_purchase_order = 0
-		budget.action_if_annual_budget_exceeded = budget.action_if_annual_budget_exceeded or "Warn"
-		budget.action_if_accumulated_monthly_budget_exceeded = budget.action_if_accumulated_monthly_budget_exceeded or "Warn"
-
-		# This Budget doc is treated as fully owned/managed by this Facility -
-		# its accounts table is replaced wholesale each sync rather than
-		# merged, so don't add unrelated accounts to it manually.
-		budget.set("accounts", [])
-		for account, amount in account_totals.items():
-			budget.append("accounts", {"account": account, "budget_amount": flt(amount, 2)})
-
-		if budget.is_new():
-			budget.insert()
-		else:
-			budget.save()
-		budget.submit()
-
-		self.last_synced_budget = budget.name
-		self.save()
-
-		frappe.msgprint(
-			_("Synced Budget {0} for Fiscal Year {1} - {2} account(s), total {3}.").format(
-				budget.name, fiscal_year, len(account_totals), flt(sum(account_totals.values()), 2)
+		frappe.throw(
+			_(
+				"Budget sync is currently disabled pending a redesign around ERPNext's actual "
+				"Budget schema (one Budget document per account, Income/Expense accounts only - "
+				"principal can never be included). Nothing was changed on this Facility."
 			)
 		)
-		return budget.name
